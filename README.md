@@ -19,8 +19,8 @@ This project is an interactive code editor designed to enhance the coding experi
 
 ## Installation
 To run the code editor locally:
-1. Clone the repository: `git clone https://github.com/priya-thv/code-editor.git`
-2. Navigate to the project directory: `cd code-editor`
+1. Clone the repository: `git clone https://github.com/priya-thv/Code-editor.git`
+2. Navigate to the project directory: `cd Code-editor`
 3. Install dependencies: `npm install`
 4. Start the server: `npm start`
 
