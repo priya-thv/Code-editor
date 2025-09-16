@@ -18,75 +18,81 @@
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-  <!-- CodeMirror core JS -->
+  <!-- CodeMirror JS -->
   <script src="codemirror-5.65.18/lib/codemirror.js"></script>
   <script src="codemirror-5.65.18/mode/clike/clike.js"></script>
   <script src="codemirror-5.65.18/mode/python/python.js"></script>
   <script src="codemirror-5.65.18/addon/edit/closebrackets.js"></script>
 </head>
 
-<body>
-  <div class="row m-3">
-    <!-- Left Column: Editor -->
-    <div class="col">
-      <div class="d-flex justify-content-between mb-1 bg-dark rounded p-2">
-        <div class="col-12 w-25">
-          <label class="visually-hidden" for="inlineFormSelectPref">Preference</label>
-          <select class="form-select" id="inlineFormSelectPref">
-            <option selected>Choose...</option>
-            <option value="java">Java</option>
-            <option value="c++">C++</option>
-            <option value="python">Python</option>
-          </select>
+<body class="bg-light">
+  <div class="container-fluid p-3">
+    <div class="row">
+      <!-- Editor Section -->
+      <div class="col-lg-8 col-md-12 mb-3">
+        <div class="d-flex justify-content-between mb-2 bg-dark rounded p-2">
+          <div class="col-12 w-25">
+            <select class="form-select" id="languageSelector">
+              <option value="c++" selected>C++</option>
+              <option value="java">Java</option>
+              <option value="python">Python</option>
+            </select>
+          </div>
+          <div>
+            <button type="button" id="run" class="btn btn-success">
+              <i class="bi bi-play-fill"></i> Run
+            </button>
+          </div>
         </div>
-        <div>
-          <button type="button" class="btn btn-success">Code Sprint</button>
-          <button type="button" id="run" class="btn btn-success"><i class="bi bi-play-fill"></i></button>
-        </div>
+
+        <!-- CodeMirror Editor -->
+        <textarea id="editor"></textarea>
       </div>
 
-      <textarea id="editor" class="form-control" aria-label="First name"></textarea>
-    </div>
-
-    <!-- Right Column: Input/Output -->
-    <div class="col d-flex flex-column rounded bg-dark px-4">
-      <div class="h-50">
-        <label for="input" class="text-light mt-4 mb-2">Input</label>
-        <textarea id="input" class="form-control h-75" aria-label="Input" style="resize: none;"></textarea>
-      </div>
-      <div class="h-50">
-        <label for="output" class="text-light">Output</label>
-        <textarea id="output" class="form-control h-75" aria-label="Output" style="resize: none;"></textarea>
+      <!-- Input/Output Section -->
+      <div class="col-lg-4 col-md-12">
+        <div class="bg-dark rounded p-3 h-100">
+          <div class="mb-3">
+            <label for="input" class="text-light mb-1">Input</label>
+            <textarea id="input" class="form-control" rows="5" style="resize:none;"></textarea>
+          </div>
+          <div>
+            <label for="output" class="text-light mb-1">Output</label>
+            <textarea id="output" class="form-control" rows="8" style="resize:none;" readonly></textarea>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
-    // Initialize CodeMirror Editor
+    // Initialize CodeMirror
     const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
       mode: "text/x-c++src",
       theme: "dracula",
       lineNumbers: true,
-      autoCloseBrackets: true
+      autoCloseBrackets: true,
     });
+    editor.setSize("100%", "500px");
 
-    editor.setSize(window.innerWidth * 0.7, "500");
-
-    const languageSelector = document.getElementById("inlineFormSelectPref");
-    languageSelector.addEventListener("change", function () {
-      if (languageSelector.value === "java") {
-        editor.setOption("mode", "text/x-java");
-      } else if (languageSelector.value === "c++") {
-        editor.setOption("mode", "text/x-c++src");
-      } else if (languageSelector.value === "python") {
-        editor.setOption("mode", "text/x-python");
-      }
-    });
-
+    const languageSelector = document.getElementById("languageSelector");
     const input = document.getElementById('input');
     const output = document.getElementById('output');
     const runButton = document.getElementById('run');
 
+    // Update editor mode based on selected language
+    languageSelector.addEventListener("change", function () {
+      const selectedLang = languageSelector.value;
+      if (selectedLang === "java") {
+        editor.setOption("mode", "text/x-java");
+      } else if (selectedLang === "c++") {
+        editor.setOption("mode", "text/x-c++src");
+      } else if (selectedLang === "python") {
+        editor.setOption("mode", "text/x-python");
+      }
+    });
+
+    // Run button click
     runButton.addEventListener("click", async function () {
       const codeData = {
         code: editor.getValue(),
@@ -94,22 +100,27 @@
         lang: languageSelector.value
       };
 
+      output.value = "Running your code...";
+
       try {
-        const response = await fetch("http://localhost:8000/compile", {
+        const response = await fetch("/api/compile", { // ✅ Relative URL for Vercel
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(codeData)
         });
+
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}`);
+        }
 
         const result = await response.json();
         console.log("Server Response:", result);
 
-        output.value = result.output || "Error: No output received";
+        // Display output
+        output.value = result.output || "No output received from the server.";
       } catch (err) {
         console.error("Error running code:", err);
-        output.value = "Error connecting to server";
+        output.value = `Error: ${err.message}`;
       }
     });
   </script>
