@@ -18,7 +18,7 @@
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-  <!-- CodeMirror core JS -->
+  <!-- CodeMirror JS -->
   <script src="codemirror-5.65.18/lib/codemirror.js"></script>
   <script src="codemirror-5.65.18/mode/clike/clike.js"></script>
   <script src="codemirror-5.65.18/mode/python/python.js"></script>
@@ -26,114 +26,96 @@
 </head>
 
 <body>
-  <div class="container-fluid mt-3">
-    <div class="row">
-      <!-- Left Column: Editor -->
-      <div class="col-md-7">
-        <div class="d-flex justify-content-between mb-2 bg-dark rounded p-2">
-          <div class="col-4">
-            <select class="form-select" id="languageSelector">
-              <option selected disabled>Choose Language...</option>
-              <option value="java">Java</option>
-              <option value="c++">C++</option>
-              <option value="python">Python</option>
-            </select>
-          </div>
-          <div>
-            <button type="button" id="run" class="btn btn-success">
-              <i class="bi bi-play-fill"></i> Run
-            </button>
-          </div>
-        </div>
-        <textarea id="editor" class="form-control"></textarea>
-      </div>
-
-      <!-- Right Column: Input & Output -->
-      <div class="col-md-5 d-flex flex-column rounded bg-dark p-3">
-        <div class="mb-3">
-          <label for="input" class="text-light">Input</label>
-          <textarea id="input" class="form-control" style="height: 150px; resize: none;"></textarea>
+<div class="container-fluid mt-3">
+  <div class="row">
+    <div class="col-md-7">
+      <div class="d-flex justify-content-between mb-2 bg-dark rounded p-2">
+        <div class="col-4">
+          <select class="form-select" id="languageSelector">
+            <option selected disabled>Choose Language...</option>
+            <option value="java">Java</option>
+            <option value="c++">C++</option>
+            <option value="python">Python</option>
+          </select>
         </div>
         <div>
-          <label for="output" class="text-light">Output</label>
-          <textarea id="output" class="form-control" style="height: 150px; resize: none;" readonly></textarea>
+          <button type="button" id="run" class="btn btn-success">
+            <i class="bi bi-play-fill"></i> Run
+          </button>
         </div>
+      </div>
+      <textarea id="editor" class="form-control"></textarea>
+    </div>
+
+    <div class="col-md-5 d-flex flex-column rounded bg-dark p-3">
+      <div class="mb-3">
+        <label for="input" class="text-light">Input</label>
+        <textarea id="input" class="form-control" style="height:150px; resize:none;"></textarea>
+      </div>
+      <div>
+        <label for="output" class="text-light">Output</label>
+        <textarea id="output" class="form-control" style="height:150px; resize:none;" readonly></textarea>
       </div>
     </div>
   </div>
+</div>
 
-  <script>
-  const backendURL = window.location.hostname === "localhost"
-    ? "http://localhost:8000"
-    : window.location.origin;
+<script>
+const backendURL = window.location.hostname === "localhost"
+  ? "http://localhost:8000"
+  : window.location.origin;
 
-  const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
-    mode: "text/x-c++src",
-    theme: "dracula",
-    lineNumbers: true,
-    autoCloseBrackets: true
-  });
-  editor.setSize("100%", "500px");
+const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+  mode: "text/x-c++src",
+  theme: "dracula",
+  lineNumbers: true,
+  autoCloseBrackets: true
+});
+editor.setSize("100%", "500px");
 
-  const languageSelector = document.getElementById("languageSelector");
-  const runButton = document.getElementById('run');
-  const inputField = document.getElementById('input');
-  const outputField = document.getElementById('output');
+const languageSelector = document.getElementById("languageSelector");
+languageSelector.addEventListener("change", () => {
+  const lang = languageSelector.value;
+  if (lang === "java") editor.setOption("mode", "text/x-java");
+  else if (lang === "c++") editor.setOption("mode", "text/x-c++src");
+  else if (lang === "python") editor.setOption("mode", "text/x-python");
+});
 
-  languageSelector.addEventListener("change", () => {
-    const lang = languageSelector.value;
-    if (lang === "java") {
-      editor.setOption("mode", "text/x-java");
-    } else if (lang === "c++") {
-      editor.setOption("mode", "text/x-c++src");
-    } else if (lang === "python") {
-      editor.setOption("mode", "text/x-python");
-    }
-  });
+const runButton = document.getElementById('run');
+const inputField = document.getElementById('input');
+const outputField = document.getElementById('output');
 
-  runButton.addEventListener("click", async () => {
-    const selectedLang = languageSelector.value;
+runButton.addEventListener("click", async () => {
+  const selectedLang = languageSelector.value;
+  if (!selectedLang) {
+    alert("⚠ Please select a language first!");
+    return;
+  }
 
-    if (!selectedLang) {
-      alert("⚠ Please select a language first!");
-      return;
-    }
+  const codeData = {
+    code: editor.getValue(),
+    input: inputField.value,
+    lang: selectedLang
+  };
 
-    if (!editor.getValue().trim()) {
-      alert("⚠ Please write some code before running!");
-      return;
-    }
+  outputField.value = "⏳ Running your code...";
 
-    const codeData = {
-      code: editor.getValue(),
-      input: inputField.value,
-      lang: selectedLang
-    };
+  try {
+    const response = await fetch(`${backendURL}/compile`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(codeData)
+    });
 
-    outputField.value = "⏳ Running your code...";
+    if (!response.ok) throw new Error(`Server error: ${response.status}`);
 
-    try {
-      const response = await fetch(`${backendURL}/compile`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(codeData)
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
-
-      const result = await response.json();
-      outputField.value = result.output || "⚠ No output received.";
-    } catch (err) {
-      console.error("Error running code:", err);
-      outputField.value = `❌ Failed to connect to server.\n\nDetails: ${err.message}`;
-    }
-  });
+    const result = await response.json();
+    outputField.value = result.output || "⚠ No output received.";
+  } catch (err) {
+    console.error("Error running code:", err);
+    outputField.value = "❌ Failed to connect to server.";
+  }
+});
 </script>
-
 </body>
 </html>
-
