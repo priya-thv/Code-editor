@@ -63,73 +63,77 @@
   </div>
 
   <script>
-    // ✅ Detect backend URL dynamically (Render or Local)
-    const backendURL = window.location.hostname === "localhost"
-      ? "http://localhost:8000"
-      : window.location.origin;
+  const backendURL = window.location.hostname === "localhost"
+    ? "http://localhost:8000"
+    : window.location.origin;
 
-    // Initialize CodeMirror Editor
-    const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
-      mode: "text/x-c++src",
-      theme: "dracula",
-      lineNumbers: true,
-      autoCloseBrackets: true
-    });
-    editor.setSize("100%", "500px");
+  const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+    mode: "text/x-c++src",
+    theme: "dracula",
+    lineNumbers: true,
+    autoCloseBrackets: true
+  });
+  editor.setSize("100%", "500px");
 
-    const languageSelector = document.getElementById("languageSelector");
-    const runButton = document.getElementById('run');
-    const inputField = document.getElementById('input');
-    const outputField = document.getElementById('output');
+  const languageSelector = document.getElementById("languageSelector");
+  const runButton = document.getElementById('run');
+  const inputField = document.getElementById('input');
+  const outputField = document.getElementById('output');
 
-    // ✅ Change syntax highlighting based on selected language
-    languageSelector.addEventListener("change", () => {
-      const lang = languageSelector.value;
-      if (lang === "java") {
-        editor.setOption("mode", "text/x-java");
-      } else if (lang === "c++") {
-        editor.setOption("mode", "text/x-c++src");
-      } else if (lang === "python") {
-        editor.setOption("mode", "text/x-python");
+  languageSelector.addEventListener("change", () => {
+    const lang = languageSelector.value;
+    if (lang === "java") {
+      editor.setOption("mode", "text/x-java");
+    } else if (lang === "c++") {
+      editor.setOption("mode", "text/x-c++src");
+    } else if (lang === "python") {
+      editor.setOption("mode", "text/x-python");
+    }
+  });
+
+  runButton.addEventListener("click", async () => {
+    const selectedLang = languageSelector.value;
+
+    if (!selectedLang) {
+      alert("⚠ Please select a language first!");
+      return;
+    }
+
+    if (!editor.getValue().trim()) {
+      alert("⚠ Please write some code before running!");
+      return;
+    }
+
+    const codeData = {
+      code: editor.getValue(),
+      input: inputField.value,
+      lang: selectedLang
+    };
+
+    outputField.value = "⏳ Running your code...";
+
+    try {
+      const response = await fetch(`${backendURL}/compile`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(codeData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
       }
-    });
 
-    // ✅ Run Code
-    runButton.addEventListener("click", async () => {
-      const selectedLang = languageSelector.value;
-      if (!selectedLang) {
-        alert("⚠ Please select a language first!");
-        return;
-      }
+      const result = await response.json();
+      outputField.value = result.output || "⚠ No output received.";
+    } catch (err) {
+      console.error("Error running code:", err);
+      outputField.value = `❌ Failed to connect to server.\n\nDetails: ${err.message}`;
+    }
+  });
+</script>
 
-      const codeData = {
-        code: editor.getValue(),
-        input: inputField.value,
-        lang: selectedLang
-      };
-
-      outputField.value = "⏳ Running your code...";
-
-      try {
-        const response = await fetch(`${backendURL}/compile`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(codeData)
-        });
-
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.status}`);
-        }
-
-        const result = await response.json();
-        outputField.value = result.output || "⚠ No output received.";
-      } catch (err) {
-        console.error("Error running code:", err);
-        outputField.value = "❌ Failed to connect to server.";
-      }
-    });
-  </script>
 </body>
 </html>
+
