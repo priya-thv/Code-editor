@@ -1,6 +1,10 @@
-const { exec } = require("child_process");
-const fs = require("fs");
-const path = require("path");
+import { exec } from "child_process";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const tempDir = path.join(__dirname, "temp");
 if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
@@ -10,7 +14,7 @@ if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
  * @param {Object} param0 - { code, input, lang }
  * @param {Function} callback - callback(output)
  */
-function runCode({ code, input, lang }, callback) {
+export function runCode({ code, input, lang }, callback) {
   const id = Date.now();
   let fileName, exeFile, command;
 
@@ -42,5 +46,3 @@ function runCode({ code, input, lang }, callback) {
     callback(stdout || stderr);
   });
 }
-
-module.exports = { runCode };
