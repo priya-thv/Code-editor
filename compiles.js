@@ -10,7 +10,7 @@ const tempDir = path.join(__dirname, "temp");
 if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
 /**
- * Runs code in C++, Java, or Python.
+ * Runs code in C++, Java, or Python on Linux.
  * @param {Object} param0 - { code, input, lang }
  * @param {Function} callback - callback(output)
  */
@@ -21,7 +21,7 @@ export function runCode({ code, input, lang }, callback) {
   try {
     if (lang === "c++") {
       fileName = path.join(tempDir, `${id}.cpp`);
-      exeFile = path.join(tempDir, `${id}`); // Linux: no .exe
+      exeFile = path.join(tempDir, `${id}`); // Linux binary
       fs.writeFileSync(fileName, code);
 
       compileCmd = `g++ "${fileName}" -o "${exeFile}"`;
@@ -43,11 +43,10 @@ export function runCode({ code, input, lang }, callback) {
       fileName = path.join(tempDir, `${id}.py`);
       fs.writeFileSync(fileName, code);
 
+      compileCmd = null; // Python does not need compilation
       runCmd = input
         ? `echo "${input.replace(/"/g, '\\"')}" | python3 "${fileName}"`
         : `python3 "${fileName}"`;
-
-      compileCmd = null; // Python doesn’t need compilation
 
     } else {
       return callback("❌ Unsupported language");
@@ -57,7 +56,7 @@ export function runCode({ code, input, lang }, callback) {
 
     exec(fullCommand, { timeout: 15000 }, (error, stdout, stderr) => {
       if (error) return callback(stderr || error.message);
-      callback(stdout || stderr);
+      callback(stdout || stderr || "⚠ No output");
     });
 
   } catch (err) {
