@@ -1,12 +1,17 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const path = require("path");
-const { runCode } = require("./runCode");
+import express from "express";
+import bodyParser from "body-parser";
+import path from "path";
+import { fileURLToPath } from "url";
+import { runCode } from "./runCode.js";
+import { exec } from "child_process";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(bodyParser.json());
 
-// Serve CodeMirror static files if you keep them locally
+// Serve CodeMirror static files
 app.use("/codemirror-5.65.18", express.static(path.join(__dirname, "codemirror-5.65.18")));
 
 // Serve frontend
@@ -24,9 +29,8 @@ app.post("/compile", (req, res) => {
   });
 });
 
-// Optional: Check if compilers exist
+// Optional: Check compilers
 app.get("/check", (req, res) => {
-  const { exec } = require("child_process");
   exec("g++ --version", (err, stdout, stderr) => {
     if (err) return res.send("❌ g++ not installed");
     res.send(`✅ g++ installed: ${stdout.split("\n")[0]}`);
