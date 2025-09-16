@@ -1,7 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const { runCode } = require("./compiles");
+const { runCode } = require("./compiles"); // ✅ Correct import
 
 const app = express();
 const PORT = process.env.PORT || 8000;
