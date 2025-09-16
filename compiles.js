@@ -10,10 +10,10 @@ if (!fs.existsSync(tempDir)) {
 }
 
 function runCode({ code, input, lang }, callback) {
-  const id = Date.now(); // Unique file name for each run
+  const id = Date.now(); // Unique name for each run
   let fileName, command;
 
-  // Decide based on language
+  // Decide command and file type
   if (lang === "c++") {
     fileName = path.join(tempDir, `${id}.cpp`);
     fs.writeFileSync(fileName, code);
@@ -34,7 +34,7 @@ function runCode({ code, input, lang }, callback) {
     return callback("❌ Unsupported language");
   }
 
-  // Execute the code
+  // Run the code
   const process = exec(command, { timeout: 10000 }, (error, stdout, stderr) => {
     if (error) {
       return callback(stderr || error.message);
@@ -42,7 +42,7 @@ function runCode({ code, input, lang }, callback) {
     callback(stdout);
   });
 
-  // Pass input to the program
+  // Pass input to stdin
   if (input) {
     process.stdin.write(input);
     process.stdin.end();
