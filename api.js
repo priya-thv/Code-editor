@@ -2,8 +2,7 @@ import express from "express";
 import bodyParser from "body-parser";
 import path from "path";
 import { fileURLToPath } from "url";
-import { runCode } from "./compiles.js";
-import { exec } from "child_process";
+import { runCode } from "./runCode.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,13 +28,15 @@ app.post("/compile", (req, res) => {
   });
 });
 
-// Optional: Check compilers
+// Optional: check compilers
 app.get("/check", (req, res) => {
-  exec("g++ --version", (err, stdout, stderr) => {
-    if (err) return res.send("❌ g++ not installed");
-    res.send(`✅ g++ installed: ${stdout.split("\n")[0]}`);
+  import("child_process").then(cp => {
+    cp.exec("g++ --version", (err, stdout, stderr) => {
+      if (err) return res.send("❌ g++ not installed");
+      res.send(`✅ g++ installed: ${stdout.split("\n")[0]}`);
+    });
   });
 });
 
 const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
