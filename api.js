@@ -1,7 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const { runCode } = require("./compile");
+const { runCode } = require("./compiles");
 
 const app = express();
 const PORT = process.env.PORT || 8000;
