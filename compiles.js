@@ -16,33 +16,51 @@ if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
  */
 export function runCode({ code, input, lang }, callback) {
   const id = Date.now();
-  let fileName, exeFile, command;
+  let fileName, exeFile, compileCmd, runCmd;
 
-  if (lang === "c++") {
-    fileName = path.join(tempDir, `${id}.cpp`);
-    exeFile = path.join(tempDir, `${id}`); // No .exe on Linux
-    fs.writeFileSync(fileName, code);
-    command = `g++ "${fileName}" -o "${exeFile}" && "${exeFile}"`;
-  } else if (lang === "java") {
-    const javaFileName = "Main"; // Must match class name
-    fileName = path.join(tempDir, `${javaFileName}.java`);
-    fs.writeFileSync(fileName, code);
-    command = `javac "${fileName}" && java -cp "${tempDir}" ${javaFileName}`;
-  } else if (lang === "python") {
-    fileName = path.join(tempDir, `${id}.py`);
-    fs.writeFileSync(fileName, code);
-    command = `python3 "${fileName}"`;
-  } else {
-    return callback("❌ Unsupported language");
+  try {
+    if (lang === "c++") {
+      fileName = path.join(tempDir, `${id}.cpp`);
+      exeFile = path.join(tempDir, `${id}`); // Linux: no .exe
+      fs.writeFileSync(fileName, code);
+
+      compileCmd = `g++ "${fileName}" -o "${exeFile}"`;
+      runCmd = input
+        ? `echo "${input.replace(/"/g, '\\"')}" | "${exeFile}"`
+        : `"${exeFile}"`;
+
+    } else if (lang === "java") {
+      const javaFileName = "Main";
+      fileName = path.join(tempDir, `${javaFileName}.java`);
+      fs.writeFileSync(fileName, code);
+
+      compileCmd = `javac "${fileName}"`;
+      runCmd = input
+        ? `echo "${input.replace(/"/g, '\\"')}" | java -cp "${tempDir}" ${javaFileName}`
+        : `java -cp "${tempDir}" ${javaFileName}`;
+
+    } else if (lang === "python") {
+      fileName = path.join(tempDir, `${id}.py`);
+      fs.writeFileSync(fileName, code);
+
+      runCmd = input
+        ? `echo "${input.replace(/"/g, '\\"')}" | python3 "${fileName}"`
+        : `python3 "${fileName}"`;
+
+      compileCmd = null; // Python doesn’t need compilation
+
+    } else {
+      return callback("❌ Unsupported language");
+    }
+
+    const fullCommand = compileCmd ? `${compileCmd} && ${runCmd}` : runCmd;
+
+    exec(fullCommand, { timeout: 15000 }, (error, stdout, stderr) => {
+      if (error) return callback(stderr || error.message);
+      callback(stdout || stderr);
+    });
+
+  } catch (err) {
+    callback(`Server error: ${err.message}`);
   }
-
-  // Include input if provided
-  if (input) {
-    command = `echo "${input.replace(/"/g, '\\"')}" | ${command}`;
-  }
-
-  exec(command, { timeout: 15000 }, (error, stdout, stderr) => {
-    if (error) return callback(stderr || error.message);
-    callback(stdout || stderr);
-  });
 }
