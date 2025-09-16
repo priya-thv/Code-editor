@@ -1,96 +1,110 @@
 const express = require("express");
-const app = express();
+const bodyParser = require("body-parser");
 const compiler = require("compilex");
+const path = require("path");
+
+const app = express();
 const options = { stats: true };
 compiler.init(options);
-const bodyParser = require("body-parser");
 
+// Middleware
 app.use(bodyParser.json());
-app.use(
-  "/codemirror-5.65.18",
-  express.static("C:/compiler/codemirror-5.65.18")
-);
 
-app.get("/", function (req, res) {
-    compiler.flush(function(){
-        console.log("deleted")
-    })
-    res.sendFile("C:/compiler/index.html");
+// Serve CodeMirror static files
+app.use("/codemirror-5.65.18", express.static(path.join(__dirname, "codemirror-5.65.18")));
+
+// Serve index.html
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
-app.post("/compile", function (req, res) {
-  const code = req.body.code;
-  const input = req.body.input;
-  const lang = req.body.lang;
+// Safe compile handler
+function safeCompile(compileFunc, envData, code, input, res, langName) {
+  try {
+    const callback = (data) => {
+      if (data.errors) {
+        console.error(`${langName} compile errors:`, data.errors);
+        return res.json({ output: data.errors });
+      }
+      if (data.output) {
+        return res.json(data);
+      }
+      return res.json({ output: `Unknown error during ${langName} execution` });
+    };
+
+    if (input !== undefined && input !== "") {
+      compileFunc(envData, code, input, callback);
+    } else {
+      compileFunc(envData, code, callback);
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ output: `Server error during ${langName} execution` });
+  }
+}
+
+app.post("/compile", (req, res) => {
+  const { code, input, lang } = req.body;
+
+  if (!code || !lang) {
+    return res.status(400).json({ output: "Code and language are required" });
+  }
+
+  let envData;
+  let responseSent = false; // ✅ Track if response is already sent
+
+ const sendOnce = (data) => {
+    if (responseSent) return;
+    responseSent = true;
+
+    if (data.errors) {
+        return res.json({ output: data.errors });
+    }
+    return res.json({ output: data.output || `Error during ${lang} execution` });
+};
+
 
   try {
-    let envData;
-    if (lang === "c++") {
-      envData = { OS: "windows", cmd: "g++",options:{timeout:10000} }; 
-      if (input) {
-        compiler.compileCPPWithInput(envData, code, input, function (data) {
-          if (data.output) {
-            res.send(data);
-          } else {
-            res.send({ output: "error" });
-          }
-        });
-      } else {
-        compiler.compileCPP(envData, code, function (data) {
-          if (data.output) {
-            res.send(data);
-          } else {
-            res.send({ output: "error" });
-          }
-        });
-      }
-    } else if (lang === "python") {
-      envData = { OS: "windows" }; // Adjust for Linux if necessary
-      if (input) {
-        compiler.compilePythonWithInput(envData, code, input, function (data) {
-          if (data.output) {
-            res.send(data);
-          } else {
-            res.send({ output: "error" });
-          }
-        });
-      } else {
-        compiler.compilePython(envData, code, function (data) {
-          if (data.output) {
-            res.send(data);
-          } else {
-            res.send({ output: "error" });
-          }
-        });
-      }
-    } else if (lang === "java") {
-      envData = { OS: "windows" }; // Adjust for Linux if necessary
-      if (input) {
-        compiler.compileJavaWithInput(envData, code, input, function (data) {
-          if (data.output) {
-            res.send(data);
-          } else {
-            res.send({ output: "error" });
-          }
-        });
-      } else {
-        compiler.compileJava(envData, code, function (data) {
-          if (data.output) {
-            res.send(data);
-          } else {
-            res.send({ output: "error" });
-          }
-        });
-      }
-    } else {
-      res.status(400).send({ error: "Unsupported language" });
+    switch (lang) {
+      case "c++":
+        envData = { OS: "windows", cmd: "g++", options: { timeout: 10000 } };
+        if (input) {
+          compiler.compileCPPWithInput(envData, code, input, sendOnce);
+        } else {
+          compiler.compileCPP(envData, code, sendOnce);
+        }
+        break;
+
+      case "python":
+        envData = { OS: "windows" };
+        if (input) {
+          compiler.compilePythonWithInput(envData, code, input, sendOnce);
+        } else {
+          compiler.compilePython(envData, code, sendOnce);
+        }
+        break;
+
+      case "java":
+        envData = { OS: "windows" };
+        if (input) {
+          compiler.compileJavaWithInput(envData, code, input, sendOnce);
+        } else {
+          compiler.compileJava(envData, code, sendOnce);
+        }
+        break;
+
+      default:
+        res.status(400).json({ output: "Unsupported language" });
     }
-  } catch (e) {
-    console.error(e);
-    res.status(500).send({ error: "An error occurred during compilation." });
+  } catch (err) {
+    console.error(err);
+    if (!responseSent) res.status(500).json({ output: `Server error during ${lang} execution` });
   }
 });
 
-app.listen(8000, () => {
-  console.log("Server is running on port 8000");
-});  
+// Start server
+const PORT = 8000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+});
+
