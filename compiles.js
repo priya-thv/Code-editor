@@ -3,24 +3,20 @@ const fs = require("fs");
 const path = require("path");
 
 const tempDir = path.join(__dirname, "temp");
-
-// Ensure temp folder exists
-if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir);
-}
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
 function runCode({ code, input, lang }, callback) {
-  const id = Date.now(); // Unique name for each run
-  let fileName, command;
+  const id = Date.now();
+  let fileName, exeFile, command;
 
-  // Decide command and file type
   if (lang === "c++") {
     fileName = path.join(tempDir, `${id}.cpp`);
+    exeFile = path.join(tempDir, `${id}`);
     fs.writeFileSync(fileName, code);
-    command = `g++ "${fileName}" -o "${tempDir}/${id}.exe" && "${tempDir}/${id}.exe"`;
+    command = `g++ "${fileName}" -o "${exeFile}" && "${exeFile}"`;
   } 
   else if (lang === "java") {
-    const javaFileName = "Main"; // Class name must match file name
+    const javaFileName = "Main";
     fileName = path.join(tempDir, `${javaFileName}.java`);
     fs.writeFileSync(fileName, code);
     command = `javac "${fileName}" && java -cp "${tempDir}" ${javaFileName}`;
@@ -28,25 +24,21 @@ function runCode({ code, input, lang }, callback) {
   else if (lang === "python") {
     fileName = path.join(tempDir, `${id}.py`);
     fs.writeFileSync(fileName, code);
-    command = `python "${fileName}"`;
+    command = `python3 "${fileName}"`;
   } 
   else {
     return callback("❌ Unsupported language");
   }
 
-  // Run the code
-  const process = exec(command, { timeout: 10000 }, (error, stdout, stderr) => {
-    if (error) {
-      return callback(stderr || error.message);
-    }
-    callback(stdout);
-  });
-
-  // Pass input to stdin
+  // Include input if provided
   if (input) {
-    process.stdin.write(input);
-    process.stdin.end();
+    command = `echo "${input.replace(/"/g, '\\"')}" | ${command}`;
   }
+
+  exec(command, { timeout: 10000 }, (error, stdout, stderr) => {
+    if (error) return callback(stderr || error.message);
+    callback(stdout || stderr);
+  });
 }
 
 module.exports = { runCode };
